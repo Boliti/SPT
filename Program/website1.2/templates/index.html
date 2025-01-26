@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обработка спектров</title>
+    <!-- Подключение CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Подключение Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.20.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Обработка спектров</h1>
+        
+        <!-- Загрузка файлов -->
+        <div>
+            <h2>Загрузка данных</h2>
+            <input type="file" id="files" multiple>
+            <button onclick="uploadFiles()">Загрузить файлы</button>
+            <p id="upload_status"></p>
+        </div>
+        
+        <!-- Параметры обработки -->
+        <div>
+            <h2>Параметры обработки</h2>
+            <label>
+                Удаление базовой линии:
+                <input type="checkbox" id="remove_baseline">
+            </label>
+            <br>
+            <label>
+                Сглаживание:
+                <input type="checkbox" id="apply_smoothing">
+            </label>
+            <br>
+            <label>
+                Нормализация:
+                <input type="checkbox" id="normalize">
+            </label>
+            <br>
+            <label>
+                Поиск пиков:
+                <input type="checkbox" id="find_peaks">
+            </label>
+            <br>
+            <button onclick="processAndPlot()">Обработать и построить график</button>
+        </div>
+
+        <!-- Контейнер для графика -->
+        <div id="plot_container">
+            <h2>График</h2>
+            <div id="spectrum_plot" style="width:100%;height:500px;"></div>
+        </div>
+    </div>
+
+    <!-- Подключение JavaScript -->
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

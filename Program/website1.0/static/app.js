@@ -3,7 +3,7 @@ let amplitudesList = [];
 
 // Загрузка файлов
 async function uploadFiles() {
-    const files = document.getElementById('files').files;
+    const files = document.getElementById('files').files; // Получаем файлы из input
     const formData = new FormData();
 
     for (let file of files) {
@@ -16,16 +16,14 @@ async function uploadFiles() {
     });
 
     const result = await response.json();
-    console.log(result);
-
-    if (result.frequencies_list && result.amplitudes_list) {
-        frequenciesList = result.frequencies_list; // Сохраняем частоты
-        amplitudesList = result.amplitudes_list;  // Сохраняем амплитуды
+    if (result.files) {
+        console.log('Загруженные файлы:', result.files);
         alert('Файлы успешно загружены!');
     } else {
-        alert('Ошибка при загрузке файлов.');
+        alert(`Ошибка: ${result.error}`);
     }
 }
+
 
 // Обработка данных
 async function processData() {
