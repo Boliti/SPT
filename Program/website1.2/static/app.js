@@ -32,7 +32,7 @@ async function uploadFiles() {
             allFrequencies = result.frequencies;
             allAmplitudes = result.amplitudes;
 
-            document.getElementById('upload_status').innerText = "Файлы успешно загружены.";
+            document.getElementById('upload_status').innerText = `Файлы успешно загружены. Число файлов: ${result.files.length}`;
         } else {
             alert("Ошибка: Сервер не вернул данные частот и амплитуд.");
         }
@@ -50,14 +50,6 @@ async function processAndPlot() {
         return;
     }
 
-    const peakWidthInput = document.getElementById('peak_width');
-    const peakProminenceInput = document.getElementById('peak_prominence');
-
-    if (!peakWidthInput || !peakProminenceInput) {
-        alert("Элементы для ввода параметров пиков отсутствуют.");
-        return;
-    }
-
     const params = {
         frequencies: allFrequencies,
         amplitudes: allAmplitudes,
@@ -65,8 +57,14 @@ async function processAndPlot() {
         apply_smoothing: document.getElementById('apply_smoothing').checked,
         normalize: document.getElementById('normalize').checked,
         find_peaks: document.getElementById('find_peaks').checked,
-        width: parseFloat(peakWidthInput.value) || 1,
-        prominence: parseFloat(peakProminenceInput.value) || 1
+        lam: parseFloat(document.getElementById('lam').value) || 1000,
+        p: parseFloat(document.getElementById('p').value) || 0.001,
+        window_length: parseInt(document.getElementById('window_length').value) || 25,
+        polyorder: parseInt(document.getElementById('polyorder').value) || 2,
+        width: parseFloat(document.getElementById('peak_width').value) || 1,
+        prominence: parseFloat(document.getElementById('peak_prominence').value) || 1,
+        min_freq: parseFloat(document.getElementById('min_freq').value) || 0,
+        max_freq: parseFloat(document.getElementById('max_freq').value) || 10000,
     };
 
     console.log("Параметры отправки:", params);
@@ -88,18 +86,21 @@ async function processAndPlot() {
         console.log("Ответ от /process_data:", result);
 
         if (result.processed_amplitudes && Array.isArray(result.processed_amplitudes)) {
-            plotCombinedSpectrum(allFrequencies, result.processed_amplitudes, result.peaks || []);
+            plotCombinedSpectrum(result.frequencies, result.processed_amplitudes, result.peaks || []);
         } else {
             alert(`Ошибка обработки данных: ${result.error || "Неизвестная ошибка"}`);
         }
     } catch (error) {
-        console.error("Ошибка в процессе обработки:", error.message || error);
+        console.error("Ошибка в процессе обработки:", error);
         alert(`Ошибка при обработке данных: ${error.message || "Неизвестная ошибка"}`);
     }
 }
 
+
+
 function plotCombinedSpectrum(allFrequencies, allAmplitudes, allPeaks) {
     const plotData = [];
+    const lineColors = ['blue', 'green', 'purple', 'pink', 'orange', 'teal'];
 
     for (let i = 0; i < allFrequencies.length; i++) {
         plotData.push({
@@ -107,28 +108,28 @@ function plotCombinedSpectrum(allFrequencies, allAmplitudes, allPeaks) {
             y: allAmplitudes[i],
             type: 'scatter',
             mode: 'lines',
-            name: `Файл ${i + 1}`
+            name: `Файл ${i + 1}`,
+            line: { color: lineColors[i % lineColors.length] }
         });
 
         if (allPeaks[i] && allPeaks[i].length > 0) {
-            const peakIndices = allPeaks[i];
             plotData.push({
-                x: peakIndices.map(index => allFrequencies[i][index]),
-                y: peakIndices.map(index => allAmplitudes[i][index]),
+                x: allPeaks[i].map(index => allFrequencies[i][index]),
+                y: allPeaks[i].map(index => allAmplitudes[i][index]),
                 type: 'scatter',
                 mode: 'markers',
                 name: `Пики файла ${i + 1}`,
-                marker: { color: 'red', size: 8 }
+                marker: { color: lineColors[i % lineColors.length], size: 8 }
             });
         }
     }
 
-    const layout = {
+    Plotly.newPlot('spectrum_plot', plotData, {
         title: 'Сравнение спектров',
         xaxis: { title: 'Частота' },
         yaxis: { title: 'Амплитуда' },
-        showlegend: true
-    };
-
-    Plotly.newPlot('spectrum_plot', plotData, layout);
+    });
 }
+
+
+

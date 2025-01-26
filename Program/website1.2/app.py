@@ -1,12 +1,12 @@
 import os
 from flask import Flask, request, jsonify, render_template
 import numpy as np
-from data_processing import baseline_als, smooth_signal, normalize_snv, find_signal_peaks
+from data_processing import baseline_als, smooth_signal, normalize_snv, find_signal_peaks, filter_frequency_range
 
-# Инициализация приложения Flask
+# Инициализация Flask приложения
 app = Flask(__name__)
 
-# Директория для сохранения загруженных файлов
+# Директория для загрузки файлов
 UPLOAD_FOLDER = './uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -20,7 +20,7 @@ def index():
 @app.route('/upload_files', methods=['POST'])
 def upload_files():
     """
-    Загрузка нескольких файлов на сервер и извлечение данных частот и амплитуд для каждого файла.
+    Загрузка файлов и извлечение данных частот и амплитуд.
     """
     if 'files' not in request.files:
         return jsonify({'error': 'Файлы не найдены'}), 400
@@ -35,7 +35,7 @@ def upload_files():
             if file.filename == '':
                 return jsonify({'error': 'Один из файлов не имеет имени'}), 400
 
-            # Читаем данные из файла
+            # Читаем содержимое файла
             content = file.read().decode('utf-8').splitlines()
             frequencies = []
             amplitudes = []
@@ -48,7 +48,6 @@ def upload_files():
                 except ValueError:
                     return jsonify({'error': f'Неверный формат данных в файле {file.filename}'}), 400
 
-            # Сохраняем данные для каждого файла
             all_frequencies.append(frequencies)
             all_amplitudes.append(amplitudes)
             file_names.append(file.filename)
@@ -65,70 +64,66 @@ def upload_files():
 
 @app.route('/process_data', methods=['POST'])
 def process_data():
-    """
-    Обработка данных: удаление базовой линии, сглаживание, нормализация, поиск пиков.
-    """
     try:
+        # Получаем данные из запроса
         data = request.json
-        all_frequencies = data.get('frequencies', [])
-        all_amplitudes = data.get('amplitudes', [])
-
-        if not all_frequencies or not all_amplitudes:
-            raise ValueError("Данные частот или амплитуд отсутствуют или некорректны.")
-
-        # Параметры обработки
-        lam = data.get('lam', 1000)
-        p = data.get('p', 0.001)
-        window_length = data.get('window_length', 25)
-        polyorder = data.get('polyorder', 2)
-        width = data.get('width', 1)
-        prominence = data.get('prominence', 1)
+        frequencies_list = data['frequencies']
+        amplitudes_list = data['amplitudes']
+        min_freq = data.get('min_freq', 0)
+        max_freq = data.get('max_freq', 10000)
         remove_baseline = data.get('remove_baseline', False)
         apply_smoothing = data.get('apply_smoothing', False)
         normalize = data.get('normalize', False)
         find_peaks_flag = data.get('find_peaks', False)
+        width = data.get('width', 1)
+        prominence = data.get('prominence', 1)
 
-        processed_amplitudes = []
+        # Обработка данных
+        allFrequencies = []
+        allAmplitudes = []
         peaks_list = []
         peaks_values_list = []
 
-        for frequencies, amplitudes in zip(all_frequencies, all_amplitudes):
-            amplitudes = np.array(amplitudes)  # Преобразуем в numpy.ndarray
+        for frequencies, amplitudes in zip(frequencies_list, amplitudes_list):
+            # Фильтрация по частотам
+            frequencies, amplitudes = filter_frequency_range(frequencies, amplitudes, min_freq, max_freq)
 
-            if amplitudes.size == 0:
-                raise ValueError("Массив амплитуд пустой.")
-
+            # Удаление базовой линии
             if remove_baseline:
-                baseline = baseline_als(amplitudes, lam, p)
-                amplitudes -= baseline
+                amplitudes -= baseline_als(amplitudes, data.get('lam', 1000), data.get('p', 0.001))
 
+            # Сглаживание
             if apply_smoothing:
-                if amplitudes.size < window_length:
-                    raise ValueError("Длина сигнала меньше размера окна сглаживания.")
-                amplitudes = smooth_signal(amplitudes, window_length, polyorder)
+                amplitudes = smooth_signal(amplitudes, data.get('window_length', 25), data.get('polyorder', 2))
 
+            # Нормализация
             if normalize:
                 amplitudes = normalize_snv(amplitudes)
 
+            # Поиск пиков
             peaks = []
             peaks_values = []
             if find_peaks_flag:
                 peaks, _ = find_signal_peaks(amplitudes, width=width, prominence=prominence)
-                peaks_values = amplitudes[peaks] if peaks.size > 0 else []
+                peaks_values = amplitudes[peaks] if len(peaks) > 0 else []
 
-            processed_amplitudes.append(amplitudes.tolist())
+            # Сохраняем результаты
+            allFrequencies.append(frequencies)
+            allAmplitudes.append(amplitudes)
             peaks_list.append(peaks.tolist() if len(peaks) > 0 else [])
             peaks_values_list.append(peaks_values.tolist() if len(peaks_values) > 0 else [])
 
+        # Возвращаем JSON-ответ
         return jsonify({
-            'processed_amplitudes': processed_amplitudes,
+            'frequencies': [f.tolist() for f in allFrequencies],
+            'processed_amplitudes': [a.tolist() for a in allAmplitudes],
             'peaks': peaks_list,
             'peaks_values': peaks_values_list
         })
-
     except Exception as e:
-        print("Ошибка обработки данных:", str(e))
-        return jsonify({'error': f'Ошибка обработки данных: {str(e)}'}), 400
+        print(f"Ошибка обработки данных: {str(e)}")
+        return jsonify({'error': f"Ошибка обработки данных: {str(e)}"}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)

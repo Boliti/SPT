@@ -3,10 +3,19 @@ from scipy.signal import savgol_filter, find_peaks
 from scipy.sparse.linalg import spsolve
 from scipy import sparse
 
-def baseline_als(amplitudes, lam=1000, p=0.001, niter=10):
+def baseline_als(amplitudes, lam, p, niter=10):
     """
     Удаление базовой линии методом ALS.
+    Параметры:
+    - lam: параметр сглаживания (λ)
+    - p: параметр весов (0 < p < 1)
+    - niter: количество итераций
     """
+    if lam <= 0:
+        raise ValueError("λ должно быть положительным.")
+    if not (0 < p < 1):
+        raise ValueError("p должно быть между 0 и 1.")
+    
     if not isinstance(amplitudes, np.ndarray):
         amplitudes = np.array(amplitudes)
 
@@ -23,15 +32,21 @@ def baseline_als(amplitudes, lam=1000, p=0.001, niter=10):
         w = p * (amplitudes > z) + (1 - p) * (amplitudes < z)
     return z
 
-def smooth_signal(amplitudes, window_length=25, polyorder=2):
+def smooth_signal(amplitudes, window_length, polyorder):
     """
     Сглаживание сигнала методом Савицкого-Голая.
+    Параметры:
+    - window_length: длина окна сглаживания
+    - polyorder: порядок полинома
     """
     if not isinstance(amplitudes, np.ndarray):
         amplitudes = np.array(amplitudes)
 
     if len(amplitudes) < window_length:
         raise ValueError("Длина сигнала меньше размера окна сглаживания.")
+    if polyorder >= window_length:
+        raise ValueError("Порядок полинома должен быть меньше длины окна.")
+    
     return savgol_filter(amplitudes, window_length, polyorder)
 
 def normalize_snv(amplitudes):
@@ -52,14 +67,55 @@ def normalize_snv(amplitudes):
 
 def find_signal_peaks(amplitudes, width=1, prominence=1):
     """
-    Поиск пиков в сигнале.
+    Поиск пиков в массиве амплитуд.
+    Параметры:
+    - amplitudes: массив амплитуд
+    - width: ширина пиков
+    - prominence: значимость пиков
+    Возвращает:
+    - indices: индексы пиков
+    - properties: свойства пиков
     """
     if not isinstance(amplitudes, np.ndarray):
         amplitudes = np.array(amplitudes)
 
     if amplitudes.size == 0:
-        raise ValueError("Массив амплитуд пустой.")
+        return [], {}
 
     peaks, properties = find_peaks(amplitudes, width=width, prominence=prominence)
     return peaks, properties
+
+def filter_frequency_range(frequencies, amplitudes, min_freq, max_freq):
+    """
+    Фильтрация данных по заданному диапазону частот.
+    Параметры:
+    - frequencies: массив частот
+    - amplitudes: массив амплитуд
+    - min_freq: минимальная частота
+    - max_freq: максимальная частота
+    """
+    if not isinstance(frequencies, np.ndarray):
+        frequencies = np.array(frequencies)
+    if not isinstance(amplitudes, np.ndarray):
+        amplitudes = np.array(amplitudes)
+
+    if frequencies.size == 0 or amplitudes.size == 0:
+        raise ValueError("Один из массивов (частоты или амплитуды) пустой.")
+
+    if min_freq > max_freq:
+        raise ValueError("Минимальная частота должна быть меньше или равна максимальной частоте.")
+
+    # Применение маски
+    mask = (frequencies >= min_freq) & (frequencies <= max_freq)
+
+    if not np.any(mask):
+        raise ValueError(f"Нет данных в диапазоне частот от {min_freq} до {max_freq}.")
+
+    filtered_frequencies = frequencies[mask]
+    filtered_amplitudes = amplitudes[mask]
+
+    print(f"Фильтрованные частоты (первые 10): {filtered_frequencies[:10]}")
+    print(f"Начальная частота: {filtered_frequencies[0]}")
+    return filtered_frequencies, filtered_amplitudes
+
 
