@@ -1,7 +1,14 @@
 import os
 from flask import Flask, request, jsonify, render_template
 import numpy as np
-from data_processing import baseline_als, smooth_signal, normalize_snv, find_signal_peaks, filter_frequency_range
+from data_processing import (
+    baseline_als,
+    smooth_signal,
+    normalize_snv,
+    find_signal_peaks,
+    filter_frequency_range,
+    parse_esp_file
+)
 
 # Инициализация Flask приложения
 app = Flask(__name__)
@@ -35,25 +42,45 @@ def upload_files():
             if file.filename == '':
                 return jsonify({'error': 'Один из файлов не имеет имени'}), 400
 
-            # Читаем содержимое файла
-            content = file.read().decode('utf-8').splitlines()
+            filename = file.filename.lower()
+            content = file.read().decode('utf-8')
+
             frequencies = []
             amplitudes = []
 
-            for line in content:
+            if filename.endswith('.esp'):
+                # Обработка файлов .esp
                 try:
-                    freq, ampl = map(float, line.split())
-                    frequencies.append(freq)
-                    amplitudes.append(ampl)
-                except ValueError:
-                    return jsonify({'error': f'Неверный формат данных в файле {file.filename}'}), 400
+                    frequencies, amplitudes = parse_esp_file(content)
+                except Exception as e:
+                    return jsonify({'error': f'Ошибка при обработке файла {file.filename}: {str(e)}'}), 400
+            elif filename.endswith('.txt') or filename.endswith('.csv'):
+                # Обработка файлов .txt/.csv
+                try:
+                    lines = content.splitlines()
+                    for line in lines:
+                        if ',' in line:
+                            parts = line.split(',')
+                        else:
+                            parts = line.split()  # На случай разделения пробелами
+                        if len(parts) == 2:
+                            freq, ampl = map(float, parts)
+                            frequencies.append(freq)
+                            amplitudes.append(ampl)
+                        else:
+                            return jsonify({'error': f'Неверный формат данных в файле {file.filename}'}), 400
+                except Exception as e:
+                    return jsonify({'error': f'Ошибка при чтении файла {file.filename}: {str(e)}'}), 400
+            else:
+                return jsonify({'error': f'Неподдерживаемый тип файла: {file.filename}'}), 400
 
+            # Сохраняем результаты
             all_frequencies.append(frequencies)
             all_amplitudes.append(amplitudes)
             file_names.append(file.filename)
 
         return jsonify({
-            'message': 'Файлы успешно загружены',
+            'message': 'Файлы успешно загружены!',
             'files': file_names,
             'frequencies': all_frequencies,
             'amplitudes': all_amplitudes
@@ -61,6 +88,7 @@ def upload_files():
 
     except Exception as e:
         return jsonify({'error': f'Ошибка обработки файлов: {str(e)}'}), 400
+
 
 @app.route('/process_data', methods=['POST'])
 def process_data():

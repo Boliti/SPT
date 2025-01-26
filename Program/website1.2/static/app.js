@@ -2,43 +2,27 @@ let allFrequencies = [];
 let allAmplitudes = [];
 
 async function uploadFiles() {
-    console.log("Кнопка загрузки нажата.");
     const files = document.getElementById('files').files;
-
-    if (files.length === 0) {
-        alert("Выберите файлы для загрузки!");
-        return;
-    }
-
     const formData = new FormData();
+
     for (let file of files) {
         formData.append('files', file);
     }
 
-    try {
-        const response = await fetch('/upload_files', {
-            method: 'POST',
-            body: formData,
-        });
+    const response = await fetch('/upload_files', {
+        method: 'POST',
+        body: formData,
+    });
 
-        if (!response.ok) {
-            throw new Error(`Ошибка загрузки файлов: ${response.statusText}`);
-        }
+    const result = await response.json();
+    console.log(result);
 
-        const result = await response.json();
-        console.log("Ответ сервера:", result);
-
-        if (result.frequencies && result.amplitudes) {
-            allFrequencies = result.frequencies;
-            allAmplitudes = result.amplitudes;
-
-            document.getElementById('upload_status').innerText = `Файлы успешно загружены. Число файлов: ${result.files.length}`;
-        } else {
-            alert("Ошибка: Сервер не вернул данные частот и амплитуд.");
-        }
-    } catch (error) {
-        console.error("Ошибка при загрузке файлов:", error);
-        alert("Ошибка при загрузке файлов. Проверьте соединение с сервером.");
+    if (result.frequencies && result.amplitudes) {
+        allFrequencies = result.frequencies;
+        allAmplitudes = result.amplitudes;
+        alert('Файлы успешно загружены!');
+    } else {
+        alert('Ошибка при загрузке файлов: ' + result.error);
     }
 }
 

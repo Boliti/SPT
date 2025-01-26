@@ -3,6 +3,34 @@ from scipy.signal import savgol_filter, find_peaks
 from scipy.sparse.linalg import spsolve
 from scipy import sparse
 
+
+
+def parse_esp_file(file_content):
+    """
+    Парсит данные из .esp файла.
+    :param file_content: Содержимое файла в строковом формате
+    :return: Кортеж (frequencies, amplitudes)
+    """
+    frequencies = []
+    amplitudes = []
+
+    for line in file_content.splitlines():
+        # Пропускаем строки с метаданными
+        if line.startswith("#"):
+            continue
+
+        # Разделяем строки на значения
+        try:
+            freq, ampl = map(float, line.split())
+            frequencies.append(freq)
+            amplitudes.append(ampl)
+        except ValueError:
+            # Игнорируем строки, которые не могут быть преобразованы
+            continue
+
+    return frequencies, amplitudes
+
+
 def baseline_als(amplitudes, lam, p, niter=10):
     """
     Удаление базовой линии методом ALS.
