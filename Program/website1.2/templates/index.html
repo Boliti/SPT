@@ -4,41 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Спектральный анализ</title>
+    <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script defer src="/static/app.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            text-align: center;
-        }
-        .parameter-section {
-            margin-bottom: 20px;
-        }
-        .parameter-section label {
-            margin-right: 10px;
-        }
-        #upload_status {
-            margin-top: 10px;
-            color: green;
-        }
-        #spectrum_plot {
-            margin-top: 20px;
-        }
-        button {
-            margin: 5px;
-        }
-    </style>
 </head>
 <body>
     <h1>Анализ спектров</h1>
-    <div>
+    <div class="upload-section">
         <input type="file" id="files" multiple>
         <button onclick="uploadFiles()">Загрузить файлы</button>
     </div>
-    <br>
 
     <div class="parameter-section">
         <h3>Параметры обработки:</h3>
@@ -73,12 +48,11 @@
         <input type="number" id="max_freq" step="10" placeholder="10000">
     </div>
 
-    <div>
+    <div class="actions">
         <button onclick="processAndPlot()">Обработать и построить график</button>
     </div>
 
     <div id="upload_status"></div>
-
     <div id="spectrum_plot"></div>
 </body>
 </html>
